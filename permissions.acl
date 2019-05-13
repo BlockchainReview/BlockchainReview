@@ -1,0 +1,363 @@
+/*  
+ * Copyright (c) 2018 "A Blockchain-Based File Sharing System for Academic Paper Review System"   
+ *  
+ *  This file is free software: you may copy, redistribute and/or modify it  
+ *  under the terms of the GNU Lesser General Public License as published by the  
+ *  Free Software Foundation, either version 3 of the License, or (at your  
+ *  option) any later version.  
+ *  
+ *  This file is distributed in the hope that it will be useful, but  
+ *  WITHOUT ANY WARRANTY; without even the implied warranty of  
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU  
+ *  Lesser General Public License for more details.  
+ *  
+ *  You should have received a copy of the GNU Lesser General Public License  
+ *  along with this program.  If not,  see <http://www.gnu.org/licenses/>..  
+ *  
+ *  This file incorporates work of the Hyperledger Project covered by the following copyright and  
+ *  permission notice:  
+ *  
+ *      Licensed under the Apache License, Version 2.0 (the "License");
+ *      you may not use this file except in compliance with the License.
+ *      You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ *      Unless required by applicable law or agreed to in writing, software
+ *      distributed under the License is distributed on an "AS IS" BASIS,
+ *      WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *      See the License for the specific language governing permissions and
+ *      limitations under the License.
+ */
+
+/* Admin */
+
+rule NetworkAdminUser {
+    description: "Grant business network administrators full access to user resources"
+    participant: "org.hyperledger.composer.system.NetworkAdmin"
+    operation: ALL
+    resource: "**"
+    action: ALLOW
+}
+
+rule NetworkAdminSystem {
+    description: "Grant business network administrators full access to system resources"
+    participant: "org.hyperledger.composer.system.NetworkAdmin"
+    operation: ALL
+    resource: "org.hyperledger.composer.system.**"
+    action: ALLOW
+}
+
+/* User base rules */
+rule UserSystem {
+    description: "Grant Users access to system resources"
+    participant: "org.acad.acadpaperreview.User"
+    operation: READ, CREATE
+    resource: "org.hyperledger.composer.system.**"
+    action: ALLOW
+}
+
+rule UserAddAsset {
+    description: "Grant business Users to create an asset"
+    participant: "org.acad.acadpaperreview.User"
+    operation: CREATE
+    resource: "org.hyperledger.composer.system.AddAsset"
+    action: ALLOW
+}
+
+rule UserModifyAsset {
+    description: "Grant business Users to to modify asset"
+    participant: "org.acad.acadpaperreview.User"
+    operation: CREATE
+    resource: "org.hyperledger.composer.system.UpdateAsset"
+    action: ALLOW
+}
+
+rule UserModifyParticipant {
+    description: "Grant business Users to read each others"
+    participant: "org.acad.acadpaperreview.User"
+    operation: CREATE
+    resource: "org.hyperledger.composer.system.UpdateParticipant"
+    action: ALLOW
+}
+
+/* Transaction rules */
+rule UserCreatePaperInfo {
+    description: "Grant business Users to create PaperInfo for their papers"
+    participant(m): "org.acad.acadpaperreview.User"
+    operation: CREATE
+    resource(v): "org.acad.acadpaperreview.CreatePaperInfo"
+    condition: (v.paper.owner.getIdentifier() == m.getIdentifier())
+    action: ALLOW
+}
+
+rule UserSubscribePaper {
+    description: "Grant business Users to buy papers"
+    participant(m): "org.acad.acadpaperreview.User"
+    operation: CREATE
+    resource(v): "org.acad.acadpaperreview.SubscribePaper"
+    condition: (v.newUser.getIdentifier() == m.getIdentifier())
+    action: ALLOW
+}
+
+rule AcademicSubmitPaper {
+    description: "Grant academics to submit papers"
+    participant(m): "org.acad.acadpaperreview.Academic"
+    operation: CREATE
+    resource(v): "org.acad.acadpaperreview.SubmitPaper"
+    condition: (v.paper.owner.getIdentifier() == m.getIdentifier())
+    action: ALLOW
+}
+
+rule AcademicRequestReview {
+    description: "Grant academics to start review requests"
+    participant(m): "org.acad.acadpaperreview.Academic"
+    operation: CREATE
+    resource(v): "org.acad.acadpaperreview.RequestReview"
+    condition: ((v.academic.getIdentifier() == m.getIdentifier()) && (v.conference.conStatus == "Open"))
+    action: ALLOW
+}
+
+rule PublisherAllocatePaper {
+    description: "Grant publishers to allocate reviewers to papers when a conference is closed"
+    participant(m): "org.acad.acadpaperreview.Publisher"
+    operation: CREATE
+    resource(v): "org.acad.acadpaperreview.AllocatePapers"
+    condition: ((v.conference.publisher.getIdentifier() == m.getIdentifier()) && (v.conference.conStatus == "Close"))
+    action: ALLOW
+}
+
+rule AcademicSubmitReview {
+    description: "Allow Academic to submit a review"
+    participant(m): "org.acad.acadpaperreview.Academic"
+    operation: CREATE
+    resource(v): "org.acad.acadpaperreview.SubmitReview"
+    condition: ((v.author.getIdentifier() == m.getIdentifier()) && (v.review.conference.conStatus != "Close"))
+    action: ALLOW
+}
+
+rule PublisherAssessPaper {
+    description: "Allow publisher to change the state of a review"
+    participant(m): "org.acad.acadpaperreview.Publisher"
+    operation: CREATE
+    resource(v): "org.acad.acadpaperreview.AssessPaper"
+    condition: (v.submission.conference.publisher.getIdentifier() == m.getIdentifier())
+    action: ALLOW
+}
+
+/* Participant rules */
+rule UserModifyItself {
+    description: "Grant Users to change details for itself"
+    participant(m): "org.acad.acadpaperreview.User"
+    operation: UPDATE
+    resource(v): "org.acad.acadpaperreview.User"
+    condition: (v.getIdentifier() == m.getIdentifier())
+    action: ALLOW
+}
+
+rule UserReadOthers {
+    description: "Grant Users to read each others"
+    participant: "org.acad.acadpaperreview.User"
+    operation: READ
+    resource: "org.acad.acadpaperreview.User"
+    action: ALLOW
+}
+
+/* Conference rules */
+rule PublisherCreateConference {
+    description: "Grant publishers to create conferences"
+    participant(m): "org.acad.acadpaperreview.Publisher"
+    operation: CREATE, UPDATE
+    resource(v): "org.acad.acadpaperreview.Conference"
+    condition: (v.publisher.getIdentifier() == m.getIdentifier() && (v.conStatus != "End"))
+    action: ALLOW
+}
+
+rule UserReadConference {
+    description: "Grant business Users to read conferences"
+    participant: "org.acad.acadpaperreview.User"
+    operation: READ
+    resource: "org.acad.acadpaperreview.Conference"
+    action: ALLOW
+}
+
+/* Paper rules */
+rule AcademicCreateUpdatePaper {
+    description: "Grant academics to create and update their own papers"
+    participant(m): "org.acad.acadpaperreview.Academic"
+    operation: CREATE, UPDATE
+    resource(v): "org.acad.acadpaperreview.Paper"
+    condition: ((v.owner.getIdentifier() == m.getIdentifier()) && (v.published == "NotPub"))
+    action: ALLOW
+}
+
+rule AcademicReadPaper {
+    description: "Grant academics to read owned or published papers"
+    participant(m): "org.acad.acadpaperreview.Academic"
+    operation: READ
+    resource(v): "org.acad.acadpaperreview.Paper"
+    condition: ((v.owner.getIdentifier() == m.getIdentifier()) || (v.published == "Published"))
+    action: ALLOW
+}
+
+rule PublisherReadPaper {
+    description: "Grant Publishers to read all papers"
+    participant: "org.acad.acadpaperreview.Publisher"
+    operation: READ
+    resource: "org.acad.acadpaperreview.Paper"
+    action: ALLOW
+}
+
+rule ReaderReadPaper {
+    description: "Grant Readers to read published papers"
+    participant: "org.acad.acadpaperreview.Reader"
+    operation: READ
+    resource(v): "org.acad.acadpaperreview.Paper"
+    condition: (v.published == "Published")
+    action: ALLOW
+}
+
+/* PaperInfo rules */
+rule OwnerUpdatePaperInfo {
+    description: "Allow paper owners to update paperInfo"
+    participant(m): "org.acad.acadpaperreview.User"
+    operation: UPDATE
+    resource(v): "org.acad.acadpaperreview.PaperInfo"
+    condition: ((m.getIdentifier() == v.paper.owner.getIdentifier()) && (v.paper.published != "Submitted"))
+    action: ALLOW
+}
+
+rule SubscribedUsersReadPaperInfo {
+    description: "Grant subscribed Users to read paper info"
+    participant(m): "org.acad.acadpaperreview.User"
+    operation: READ
+    resource(v): "org.acad.acadpaperreview.PaperInfo"
+    condition: (
+        v.users.some(function (user) {
+            return user.getIdentifier() == m.getIdentifier();  
+        } )
+    )
+    action: ALLOW
+}
+
+/* Submission rules */
+rule PublisherReadSubmission {
+    description: "Allow publisher of the conference to read the submission"
+    participant(m): "org.acad.acadpaperreview.Publisher"
+    operation: READ
+    resource(v): "org.acad.acadpaperreview.Submission"
+    condition: ((v.conference.publisher.getIdentifier() == m.getIdentifier()) || (v.conference.conStatus == "End"))
+    action: ALLOW
+}
+
+rule AcademicReadSubmission {
+    description: "Allow academic to read their own submissions"
+    participant(m): "org.acad.acadpaperreview.Academic"
+    operation: READ
+    resource(v): "org.acad.acadpaperreview.Submission"
+    condition: ((v.paper.owner.getIdentifier() == m.getIdentifier()) || (v.conference.conStatus == "End"))
+    action: ALLOW
+}
+
+rule AcademicDeleteSubmission {
+    description: "Allow academic to delete their own submissions"
+    participant(m): "org.acad.acadpaperreview.Academic"
+    operation: DELETE
+    resource(v): "org.acad.acadpaperreview.Submission"
+    condition: ((v.paper.owner.getIdentifier() == m.getIdentifier()) && (v.conference.conStatus == "Open"))
+    action: ALLOW
+}
+
+rule UserReadSubmission {
+    description: "Allow users to read submission after conference ended"
+    participant(m): "org.acad.acadpaperreview.User"
+    operation: READ
+    resource(v): "org.acad.acadpaperreview.Submission"
+    condition: (v.conference.conStatus == "End")
+    action: ALLOW
+}
+
+/* Review rules */
+rule ReviewerReadReview {
+    description: "Allow reviewer of the review to read"
+    participant(m): "org.acad.acadpaperreview.Academic"
+    operation: READ
+    resource(v): "org.acad.acadpaperreview.Review"
+    condition: ((m.getIdentifier() == v.author.getIdentifier()) || (v.conference.conStatus == "End"))
+    action: ALLOW
+}
+
+rule PublisherReadReview {
+    description: "Allow publisher of the review to read and modify"
+    participant(m): "org.acad.acadpaperreview.Publisher"
+    operation: READ
+    resource(v): "org.acad.acadpaperreview.Review"
+    condition: ((m.getIdentifier() == v.owner.getIdentifier()) || (v.conference.conStatus == "End"))
+    action: ALLOW
+}
+
+rule PublisherUpdateReview {
+    description: "Allow publisher of the review to modify their own review"
+    participant(m): "org.acad.acadpaperreview.Publisher"
+    operation: UPDATE
+    resource(v): "org.acad.acadpaperreview.Review"
+    condition: ((m.getIdentifier() == v.owner.getIdentifier()) && (v.conference.conStatus != "End"))
+    action: ALLOW
+}
+
+rule UserReadReview {
+    description: "Allow users read the review after conference ends"
+    participant(m): "org.acad.acadpaperreview.User"
+    operation: READ
+    resource(v): "org.acad.acadpaperreview.Review"
+    condition: (v.conference.conStatus == "End")
+    action: ALLOW
+}
+
+/* ReviewRequest rules */
+rule AcademicDeleteRequest {
+    description: "Allow academic to gain Delete permission to their request when conference is open for request"
+    participant(m): "org.acad.acadpaperreview.Academic"
+    operation: DELETE
+    resource(v): "org.acad.acadpaperreview.ReviewRequest"
+    condition: ((m.getIdentifier()==v.academic.getIdentifier())&&(v.conference.conStatus == "Open"))
+    action: ALLOW
+}
+
+rule AcademicReadRequest {
+    description: "Allow academic to gain Read permission to their request"
+    participant(m): "org.acad.acadpaperreview.Academic"
+    operation: READ
+    resource(v): "org.acad.acadpaperreview.ReviewRequest"
+    condition: (m.getIdentifier()==v.academic.getIdentifier())
+    action: ALLOW
+}
+
+rule PublisherReadRequest {
+    description: "Allow Publishers to read review request to their conference"
+    participant(m): "org.acad.acadpaperreview.Publisher"
+    operation: READ
+    resource(v): "org.acad.acadpaperreview.ReviewRequest"
+    condition: (v.conference.publisher.getIdentifier() == m.getIdentifier())
+    action: ALLOW
+}
+
+/* Coin rules */
+rule UsersReadModifyCoin {
+    description: "Allow Users to read and update their own coin"
+    participant(m): "org.acad.acadpaperreview.User"
+    operation: READ, UPDATE
+    resource(v): "org.acad.acadpaperreview.AcadCoin"
+    condition: (v.owner.getIdentifier() == m.getIdentifier())
+    action: ALLOW
+}
+
+/* All access under transaction */
+rule AllAccessUnderTransaction {
+  description: "AllAccess - grant everything to everybody under transaction"
+  participant: "org.acad.acadpaperreview.User"
+  operation: ALL
+  resource: "org.acad.acadpaperreview.**"
+  transaction: "org.acad.acadpaperreview.*"
+  action: ALLOW
+}

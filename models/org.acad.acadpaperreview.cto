@@ -1,0 +1,248 @@
+/*  
+ * Copyright (c) 2018 "A Blockchain-Based File Sharing System for Academic Paper Review System"   
+ *  
+ *  This file is free software: you may copy, redistribute and/or modify it  
+ *  under the terms of the GNU Lesser General Public License as published by the  
+ *  Free Software Foundation, either version 3 of the License, or (at your  
+ *  option) any later version.  
+ *  
+ *  This file is distributed in the hope that it will be useful, but  
+ *  WITHOUT ANY WARRANTY; without even the implied warranty of  
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU  
+ *  Lesser General Public License for more details.  
+ *  
+ *  You should have received a copy of the GNU Lesser General Public License  
+ *  along with this program.  If not,  see <http://www.gnu.org/licenses/>..  
+ *  
+ *  This file incorporates work of the Hyperledger Project covered by the following copyright and  
+ *  permission notice:  
+ *  
+ *      Licensed under the Apache License, Version 2.0 (the "License");
+ *      you may not use this file except in compliance with the License.
+ *      You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ *      Unless required by applicable law or agreed to in writing, software
+ *      distributed under the License is distributed on an "AS IS" BASIS,
+ *      WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *      See the License for the specific language governing permissions and
+ *      limitations under the License.
+ */
+
+namespace org.acad.acadpaperreview
+
+/**
+ * Enums
+ */
+
+enum Keyword {
+  o IoT
+  o Blockchain
+  o AI
+}
+
+enum ConStatus {
+  o Open
+  o Close
+  o End
+}
+
+enum ReviewStatus {
+  o Pending
+  o Fail
+  o Pass
+}
+
+enum PubStatus {
+  o NotPub
+  o Submitted
+  o Published
+}
+
+/**
+ * Participants
+ */
+
+/**
+ * Base User model
+ */
+abstract participant User identified by userId {
+  o String userId
+  o String firstName
+  o String lastName
+  o String organisation
+  o String email
+}
+
+/**
+ * Reader model
+ */
+participant Reader extends User {
+}
+
+/**
+ * Publisher model
+ */
+participant Publisher extends User {
+}
+
+/**
+ * Academic model
+ */
+participant Academic extends User {
+  o Keyword[] interest
+}
+
+/**
+ * Assets
+ */
+
+/**
+ * Coin model
+ */
+asset AcadCoin identified by coinId {
+  o String coinId
+  --> User owner
+}
+
+/**
+ * Work model
+ */
+abstract asset Work identified by workId {
+  o String workId
+  --> User owner
+}
+
+/**
+ * Conference model
+ */
+asset Conference identified by conferenceId {
+  o String conferenceId
+  o String name
+  o Keyword[] keywords
+  o String metricsIPFSHash
+  o ConStatus conStatus
+  o Integer paperNum
+  o Double reviewerRating
+  o Integer payment
+  --> Publisher publisher
+}
+
+/**
+ * Paper model
+ */
+asset Paper extends Work {
+  o String title
+  o Keyword[] keywords
+  --> Academic[] authors
+  o Integer acadCoinNum
+  --> PaperInfo paperInfo optional
+  o PubStatus published default = "NotPub"
+}
+
+/**
+ * PaperInfo model
+ */
+asset PaperInfo identified by infoId {
+  o String infoId
+  o String IPFSHash
+  o String decryptKey
+  --> Paper paper
+  --> User[] users
+}
+
+/**
+ * Review model
+ */
+asset Review extends Work {
+  --> Academic author
+  o String IPFSHash
+  o ReviewStatus reviewStatus
+  --> Paper paper
+  --> Conference conference
+  o Double rating default = -1.0
+}
+
+/**
+ * ReviewRequest model
+ */
+asset ReviewRequest identified by requestId {
+  o String requestId
+  --> Conference conference
+  --> Academic academic
+  o Integer payment
+}
+
+/**
+ * Submission model
+ */
+asset Submission identified by submissionId {
+  o String submissionId
+  --> Paper paper
+  --> Conference conference
+  o ReviewStatus status
+}
+
+/**
+ * Transactions
+ */
+
+/**
+ * Create paper info for a paper
+ */
+transaction CreatePaperInfo {
+  o String IPFSHash
+  o String decryptKey
+  --> Paper paper
+}
+
+/**
+ * paper subscription (buy paper)
+ */
+transaction SubscribePaper {
+  --> Paper paper
+  --> User newUser
+}
+ 
+/**
+ * paper submission (submit to conference)
+ */
+transaction SubmitPaper {
+  --> Paper paper
+  --> Conference conference
+}
+
+/**
+ * Request to review
+ */
+transaction RequestReview {
+  --> Academic academic
+  --> Conference conference
+}
+
+/**
+ * Allocate Papers
+ */
+transaction AllocatePapers {
+  --> Conference conference
+  o Integer reviewPerPaper default = 1
+  o Integer maxCoins default = -1
+}
+
+/**
+ * Reviewer submit review
+ */
+transaction SubmitReview {
+  --> Review review
+  o String IPFSHash
+  o ReviewStatus status
+}
+
+/**
+ * Publisher assess Paper
+ */
+transaction AssessPaper {
+  --> Submission submission
+  o ReviewStatus newState
+}
